@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">FitnessTracker</string>
+    <string name="required_field">Обязательное поле</string>
+    <string name="invalid_number">Некорректное число</string>
+    <string name="fast_plan_title">Быстрый план</string>
+    <string name="fast_plan_details">Дефицит/профицит: ±25% от BMR\nЦель по шагам: 12 000 в день</string>
+    <string name="error_user_not_found">Ошибка: данные пользователя не найдены</string>
+    <string name="error_general">Ошибка: %s</string>
+</resources>
