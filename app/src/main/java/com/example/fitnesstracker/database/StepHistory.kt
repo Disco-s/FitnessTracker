@@ -19,7 +19,7 @@ import androidx.room.PrimaryKey
 )
 data class StepHistory(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val userId: Int,          // Add this
-    val date: String,        // Format "yyyy-MM-dd"
+    val userId: Int,
+    val date: String,
     val steps: Int
 )

@@ -39,28 +39,44 @@ import kotlin.math.roundToInt
 
 class DashboardActivity : AppCompatActivity() {
 
+    // Привязка к макету через View Binding
     private lateinit var binding: ActivityDashboardBinding
+
+    // Менеджер сенсоров и шагомер
     private lateinit var sensorManager: SensorManager
-    private lateinit var db: AppDatabase
     private var stepSensor: Sensor? = null
+
+    // Ссылка на базу данных
+    private lateinit var db: AppDatabase
+
+    // Кол-во шагов и их начальное значение
     private var stepCount = 0
     private var initialStepCount: Int? = null
+
+    // Формат даты для записи текущего дня
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
+    // Идентификатор текущего пользователя
     private var currentUserId: Int = -1
+
+    // Мьютекс для защиты от одновременных сохранений шагов
     private val stepSaveMutex = Mutex()
 
-    // Calories tracking
+    // Данные по калориям
     private var calorieGoal = 0
     private var caloriesConsumed = 0
     private var caloriesBurned = 0
 
+    private val POST_NOTIFICATIONS_PERMISSION_REQUEST_CODE = 1001
+
+    // Слушатель событий сенсора шагов
     private val sensorListener = object : SensorEventListener {
         override fun onSensorChanged(event: SensorEvent?) {
             event?.let {
                 val totalSteps = it.values[0].toInt()
                 val today = getTodayDate()
 
-                // Initialize offset once per day on first event
+                // Установка смещения шагов (offset) один раз в день
                 if (initialStepCount == null) {
                     CoroutineScope(Dispatchers.IO).launch {
                         val savedSteps = db.stepDao().getStepsByDate(today, currentUserId)?.steps ?: 0
@@ -74,7 +90,7 @@ class DashboardActivity : AppCompatActivity() {
                     return
                 }
 
-                // Calculate steps from offset
+                // Обновление шагов на основе текущего значения и offset
                 val currentSteps = totalSteps - (initialStepCount ?: totalSteps)
                 if (currentSteps != stepCount && currentSteps >= 0) {
                     stepCount = currentSteps
@@ -97,24 +113,33 @@ class DashboardActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityDashboardBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Инициализация системы отслеживания сна
         SleepActivityMonitor.initialize(applicationContext)
 
+        // Получаем ссылку на базу данных и шагомер
         db = AppDatabase.getDatabase(this)
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
         stepSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
 
+
+        // Проверка наличия датчика
         if (stepSensor == null) {
             Toast.makeText(this, "Датчик шагов не найден!", Toast.LENGTH_LONG).show()
         }
 
-        // Start StepCounterService if permission was granted in LauncherActivity
+        // Запускаем фоновый сервис шагомера, если разрешения даны
         val permissionGranted = intent.getBooleanExtra("PERMISSION_GRANTED", false)
         if (permissionGranted) {
             startStepCounterService()
         }
 
-        com.example.fitnesstracker.test.DummyDataSeeder.seed(db)
+        checkAndRequestNotificationPermission()
+        // Заполнение базы данных тестовыми данными
+        //com.example.fitnesstracker.test.DummyDataSeeder.seed(db)
 
+
+        // Настройка пользовательского интерфейса
         setupUI()
     }
 
@@ -128,10 +153,15 @@ class DashboardActivity : AppCompatActivity() {
             val user = db.userDao().getUser()
             user?.let {
                 currentUserId = it.id
+
+                // Автоматическое отслеживание сна
                 autoTrackSleep(it.id)
+
+                // Установка цели по шагам в зависимости от плана
                 val userPlan = it.planType ?: "recommended"
                 val stepGoal = if (userPlan == "fast") 12000 else 8000
 
+                // Расчет дневной калорийной цели
                 calorieGoal = CalorieGoalCalculator.calculateDailyCalories(
                     weight = it.weight,
                     height = it.height,
@@ -141,15 +171,16 @@ class DashboardActivity : AppCompatActivity() {
                     planType = userPlan
                 )
 
-                // Load today's saved steps to sync UI and initialStepCount offset
+                // Получение шагов и калорий за сегодня
                 val today = getTodayDate()
                 val savedSteps = db.stepDao().getStepsByDate(today, currentUserId)?.steps ?: 0
                 stepCount = savedSteps
-                //initialStepCount = null // Reset here to force offset recalculation on first sensor event
+
 
                 caloriesConsumed = db.foodDao().getCaloriesForDate(today, currentUserId) ?: 0
                 caloriesBurned = CalorieUtils.calculateCaloriesBurnedFromSteps(stepCount, it.weight)
 
+                // Отображение данных в UI
                 runOnUiThread {
                     binding.progressSteps.max = stepGoal
                     updateStepUI()
@@ -157,6 +188,7 @@ class DashboardActivity : AppCompatActivity() {
 
                     binding.tvWeight.text = "${it.weight} кг"
 
+                    // Оценка даты достижения цели
                     val goalDate = GoalDateEstimator.estimateGoalDate(
                         it.weight, it.desiredWeight, it.planType
                     )
@@ -167,6 +199,7 @@ class DashboardActivity : AppCompatActivity() {
             }
         }
 
+        // Обработка нажатий на карточки
         binding.cardCalories.setOnClickListener {
             startActivity(Intent(this, CalorieTrackerActivity::class.java))
             finish()
@@ -179,6 +212,7 @@ class DashboardActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        // Регистрация слушателя шагомера
         if (stepSensor != null) {
             sensorManager.registerListener(sensorListener, stepSensor, SensorManager.SENSOR_DELAY_NORMAL)
         }
@@ -186,9 +220,11 @@ class DashboardActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
+        // Отписка от слушателя при паузе
         sensorManager.unregisterListener(sensorListener)
     }
 
+    // Модификация калорийной цели с учетом плана и цели
     fun applyPlanFactor(baseCalories: Int, goalType: String, planType: String): Int {
         val factor = when (planType) {
             "fast" -> if (goalType == "lose") 0.75 else 1.25
@@ -197,11 +233,13 @@ class DashboardActivity : AppCompatActivity() {
         return (baseCalories * factor).toInt()
     }
 
+    // Обновление UI для шагов
     private fun updateStepUI() {
         binding.progressSteps.progress = stepCount
         binding.tvSteps.text = "$stepCount / ${binding.progressSteps.max} шагов"
     }
 
+    // Обновление UI для калорий
     private fun updateCaloriesUI() {
         CoroutineScope(Dispatchers.IO).launch {
             val user = db.userDao().getUser() ?: return@launch
@@ -213,6 +251,7 @@ class DashboardActivity : AppCompatActivity() {
                 isMale = user.isMale
             )
             val sleepMinutes = todaySleep?.durationMinutes ?: 0
+            val sleepHours = sleepMinutes / 60
 
             val sleepBMR = (fullBMR / 1440.0) * sleepMinutes
             val awakeBMR = (fullBMR / 1440.0) * (1440 - sleepMinutes)
@@ -229,6 +268,7 @@ class DashboardActivity : AppCompatActivity() {
                     "Потреблено: $caloriesConsumed ккал\n" +
                             "Сожжено (шаги): ${stepCalories.toInt()} ккал\n" +
                             "ПБМ во сне: ${sleepBMR.toInt()} ккал\n" +
+                            "Время во сне: ${sleepHours.toInt()} часов\n" +
                             "ПБМ в бодрствовании: ${awakeBMR.toInt()} ккал\n" +
                             "Цель на сегодня: $caloriesConsumed / $adjustedGoal ккал"
             }
@@ -236,6 +276,7 @@ class DashboardActivity : AppCompatActivity() {
     }
 
 
+    // Сохраняем шаги в базу данных
     private fun saveSteps() {
         CoroutineScope(Dispatchers.IO).launch {
             stepSaveMutex.withLock {
@@ -250,13 +291,15 @@ class DashboardActivity : AppCompatActivity() {
         }
     }
 
+    // Получаем текущую дату
     private fun getTodayDate(): String = dateFormat.format(Date())
 
+    // Загрузка данных для отображения графика шагов
     private fun loadChartData() {
         CoroutineScope(Dispatchers.IO).launch {
             val stepsData = db.stepDao().getLastWeekSteps(currentUserId)
             val calendar = Calendar.getInstance()
-            val todayDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK) // Sunday=1 ... Saturday=7
+            val todayDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
 
             val stepsMap = stepsData.associateBy {
                 val date = dateFormat.parse(it.date)
@@ -315,34 +358,65 @@ class DashboardActivity : AppCompatActivity() {
         }
     }
 
+    // Автоматическое определение сна и запись в базу
     private suspend fun autoTrackSleep(userId: Int) {
         val today = getTodayDate()
         val existing = db.sleepDao().getSleepByDate(userId, today)
         if (existing != null) return
 
-        if (!SleepActivityMonitor.wasInactiveDuringSleepHours()) {
-            return // user was active, don't log sleep
+        val segments = SleepActivityMonitor.getSleepSegments()
+        if (segments.isEmpty()) return
+
+        // Trim segments to fall within 23:00 - 07:00
+        val dateFormatFull = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+        val sleepStartWindow = dateFormatFull.parse("${getPreviousDate()} 23:00")!!.time
+        val sleepEndWindow = dateFormatFull.parse("$today 07:00")!!.time
+
+        var totalDuration = 0
+        for ((start, end) in segments) {
+            val trimmedStart = maxOf(start, sleepStartWindow)
+            val trimmedEnd = minOf(end, sleepEndWindow)
+            if (trimmedEnd > trimmedStart) {
+                totalDuration += ((trimmedEnd - trimmedStart) / (60 * 1000)).toInt()
+            }
         }
 
+        if (totalDuration > 0) {
+            val sleep = SleepHistory(
+                userId = userId,
+                date = today,
+                sleepStart = sleepStartWindow,
+                sleepEnd = sleepEndWindow,
+                durationMinutes = totalDuration
+            )
+            db.sleepDao().insert(sleep)
+        }
+
+        // Сброс сегментов сна после записи
+        SleepActivityMonitor.reset()
+    }
+
+    private fun getPreviousDate(): String {
         val cal = Calendar.getInstance()
-        cal.time = dateFormat.parse(today)!!
         cal.add(Calendar.DAY_OF_YEAR, -1)
-        val prevDay = dateFormat.format(cal.time)
+        return dateFormat.format(cal.time)
+    }
 
-        val sleepStart = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).parse("$prevDay 23:00")!!.time
-        val sleepEnd = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).parse("$today 07:00")!!.time
-        val durationMinutes = ((sleepEnd - sleepStart) / (60 * 1000)).toInt()
+    private fun checkAndRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
+                != android.content.pm.PackageManager.PERMISSION_GRANTED) {
 
-        val sleep = SleepHistory(
-            userId = userId,
-            date = today,
-            sleepStart = sleepStart,
-            sleepEnd = sleepEnd,
-            durationMinutes = durationMinutes
-        )
-
-        db.sleepDao().insert(sleep)
-        SleepActivityMonitor.reset() // Reset for next day
+                requestPermissions(
+                    arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
+                    POST_NOTIFICATIONS_PERMISSION_REQUEST_CODE
+                )
+            } else {
+                startStepCounterService()
+            }
+        } else {
+            startStepCounterService()
+        }
     }
 
 }

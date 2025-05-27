@@ -19,11 +19,11 @@ import androidx.room.PrimaryKey
 )
 data class FoodEntry(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val userId: Int,  // <-- new field here
-    val date: String, // Format "yyyy-MM-dd"
-    val mealType: String, // "breakfast", "lunch", "dinner", "snack"
+    val userId: Int,
+    val date: String,
+    val mealType: String,
     val foodName: String,
-    val quantity: Double, // in grams
+    val quantity: Double,
     val calories: Int,
     val protein: Int,
     val fat: Int,

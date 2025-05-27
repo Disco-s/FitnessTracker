@@ -15,7 +15,7 @@ import androidx.room.PrimaryKey
 )
 data class WeightHistory(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val userId: Int,  // <-- foreign key to User
-    val date: String, // yyyy-MM-dd
+    val userId: Int,
+    val date: String,
     val weight: Double
 )
