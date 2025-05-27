@@ -17,6 +17,6 @@ data class Nutriments(
     val fat100g: Double? = null,
     @SerializedName("proteins_100g")
     val proteins100g: Double? = null,
-    @SerializedName("sugars_100g")
-    val sugars100g: Double? = null
+    @SerializedName("carbohydrates_100g")
+    val carbohydrates100g: Double? = null
 )

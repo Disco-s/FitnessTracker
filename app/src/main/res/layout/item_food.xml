@@ -19,4 +19,30 @@
         android:textColor="#666"
         android:layout_width="match_parent"
         android:layout_height="wrap_content" />
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center_vertical"
+        android:weightSum="1">
+
+        <TextView
+            android:id="@+id/tvServing"
+            android:text="100 g"
+            android:layout_weight="0.5"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:textColor="#333"/>
+
+        <TextView
+            android:id="@+id/tvCalories"
+            android:text="-- kcal"
+            android:layout_weight="0.5"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:textColor="#333"/>
+    </LinearLayout>
 </LinearLayout>

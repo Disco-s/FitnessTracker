@@ -13,7 +13,7 @@ interface OpenFoodFactsApiService {
     suspend fun searchProducts(
         @Query("search_terms") query: String,
         @Query("ic") language: String = "ru",
-        @Query("fields") fields: String = "product_name,brands,code",
+        @Query("fields") fields: String = "product_name,brands,code,nutriments,energy-kcal_100g",
         @Query("page_size") pageSize: Int = 20,
         @Query("nocache") nocache: Int = 1,
         @Query("json") json: Int = 1

@@ -106,7 +106,7 @@ class AddFoodActivity : AppCompatActivity() {
         val calories = (nutriments?.energyKcal100g ?: 0.0) * factor
         val protein = (nutriments?.proteins100g ?: 0.0) * factor
         val fat = (nutriments?.fat100g ?: 0.0) * factor
-        val carbs = (nutriments?.sugars100g ?: 0.0) * factor
+        val carbs = (nutriments?.carbohydrates100g ?: 0.0) * factor
 
         binding.tvCalories.text = "Калории: ${calories.toInt()} ккал"
         binding.tvProtein.text = "Белки: ${protein.toInt()} г"
@@ -133,7 +133,7 @@ class AddFoodActivity : AppCompatActivity() {
             calories = ((nutriments.energyKcal100g ?: 0.0) * factor).toInt(),
             protein = ((nutriments.proteins100g ?: 0.0) * factor).toInt(),
             fat = ((nutriments.fat100g ?: 0.0) * factor).toInt(),
-            carbs = ((nutriments.sugars100g ?: 0.0) * factor).toInt(),
+            carbs = ((nutriments.carbohydrates100g ?: 0.0) * factor).toInt(),
             userId = currentUserId
         )
 

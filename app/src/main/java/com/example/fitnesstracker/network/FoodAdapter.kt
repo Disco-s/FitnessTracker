@@ -26,12 +26,19 @@ class FoodAdapter(
     inner class FoodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val foodName: TextView = itemView.findViewById(R.id.tvFoodName)
         private val brandName: TextView = itemView.findViewById(R.id.tvBrand)
+        private val servingSize: TextView = itemView.findViewById(R.id.tvServing)
+        private val calories: TextView = itemView.findViewById(R.id.tvCalories)
 
 
         // Привязка данных к элементу
         fun bind(item: Product) {
             foodName.text = item.product_name ?: "Без названия"
             brandName.text = item.brands ?: ""
+
+            servingSize.text = "100 г"
+
+            val kcal = item.nutriments?.energyKcal100g
+            calories.text = if (kcal != null) "${kcal.toInt()} ккал" else "-- ккал"
 
             // Обработка клика по элементу
             itemView.setOnClickListener { onItemClick(item) }
