@@ -25,9 +25,8 @@ object SleepActivityMonitor {
         if (!hasUsageAccess(context)) return
 
         val calendar = Calendar.getInstance()
-        val endTime = calendar.timeInMillis
 
-        // Define the 23:00 of previous day
+        // Define 23:00 of previous day
         calendar.add(Calendar.DAY_OF_YEAR, -1)
         calendar.set(Calendar.HOUR_OF_DAY, sleepStartHour)
         calendar.set(Calendar.MINUTE, 0)
@@ -35,44 +34,64 @@ object SleepActivityMonitor {
         calendar.set(Calendar.MILLISECOND, 0)
         val startTime = calendar.timeInMillis
 
+        // Define 23:59:59.999 of previous day
+        val endOfPreviousDayCalendar = calendar.clone() as Calendar
+        endOfPreviousDayCalendar.set(Calendar.HOUR_OF_DAY, 23)
+        endOfPreviousDayCalendar.set(Calendar.MINUTE, 59)
+        endOfPreviousDayCalendar.set(Calendar.SECOND, 59)
+        endOfPreviousDayCalendar.set(Calendar.MILLISECOND, 999)
+        val endOfPreviousDay = endOfPreviousDayCalendar.timeInMillis
+
+        // Define 00:00:00 of current day
+        val startOfCurrentDayCalendar = Calendar.getInstance()
+        startOfCurrentDayCalendar.set(Calendar.HOUR_OF_DAY, 0)
+        startOfCurrentDayCalendar.set(Calendar.MINUTE, 0)
+        startOfCurrentDayCalendar.set(Calendar.SECOND, 0)
+        startOfCurrentDayCalendar.set(Calendar.MILLISECOND, 0)
+        val startOfCurrentDay = startOfCurrentDayCalendar.timeInMillis
+
         // Define 07:00 of current day
-        val sleepEndCalendar = Calendar.getInstance()
+        val sleepEndCalendar = startOfCurrentDayCalendar.clone() as Calendar
         sleepEndCalendar.set(Calendar.HOUR_OF_DAY, sleepEndHour)
         sleepEndCalendar.set(Calendar.MINUTE, 0)
         sleepEndCalendar.set(Calendar.SECOND, 0)
         sleepEndCalendar.set(Calendar.MILLISECOND, 0)
         val maxEndTime = sleepEndCalendar.timeInMillis
 
-        // Clamp the query end time to 07:00
-        val clampedEndTime = minOf(endTime, maxEndTime)
-
-        val stats: List<UsageStats> = usageStatsManager.queryUsageStats(
+        // Query two separate intervals and merge results
+        val statsFirstPart = usageStatsManager.queryUsageStats(
             UsageStatsManager.INTERVAL_DAILY,
             startTime,
-            clampedEndTime
-        )
+            endOfPreviousDay
+        ) ?: emptyList()
 
-        if (stats.isNullOrEmpty()) return
+        val statsSecondPart = usageStatsManager.queryUsageStats(
+            UsageStatsManager.INTERVAL_DAILY,
+            startOfCurrentDay,
+            maxEndTime
+        ) ?: emptyList()
 
-        val sortedStats = stats.sortedBy { it.lastTimeUsed }
+        val allStats = (statsFirstPart + statsSecondPart).sortedBy { it.lastTimeUsed }
+        if (allStats.isEmpty()) return
+
+        sleepSegments.clear()
 
         var lastUsedTime = startTime
-        for (usage in sortedStats) {
+        for (usage in allStats) {
             val idleStart = lastUsedTime
             val idleEnd = usage.lastTimeUsed
 
             if (idleEnd - idleStart >= MIN_SLEEP_INTERVAL) {
                 sleepSegments.add(idleStart to idleEnd)
             }
-
             lastUsedTime = maxOf(lastUsedTime, usage.lastTimeUsed)
         }
 
-        // Final segment if idle until end
-        if (clampedEndTime - lastUsedTime >= MIN_SLEEP_INTERVAL) {
-            sleepSegments.add(lastUsedTime to clampedEndTime)
+        if (maxEndTime - lastUsedTime >= MIN_SLEEP_INTERVAL) {
+            sleepSegments.add(lastUsedTime to maxEndTime)
         }
     }
+
 
 
     private const val MIN_SLEEP_INTERVAL = 30 * 60 * 1000L // 30 minutes

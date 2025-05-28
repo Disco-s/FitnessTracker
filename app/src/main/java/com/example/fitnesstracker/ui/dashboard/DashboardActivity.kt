@@ -155,7 +155,7 @@ class DashboardActivity : AppCompatActivity() {
 
         checkAndRequestNotificationPermission()
         // Заполнение базы данных тестовыми данными
-        //com.example.fitnesstracker.test.DummyDataSeeder.seed(db)
+        com.example.fitnesstracker.test.DummyDataSeeder.seed(db)
 
 
         // Настройка пользовательского интерфейса
