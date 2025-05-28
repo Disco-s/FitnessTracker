@@ -7,6 +7,7 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -68,6 +69,7 @@ class DashboardActivity : AppCompatActivity() {
     private var caloriesBurned = 0
 
     private val POST_NOTIFICATIONS_PERMISSION_REQUEST_CODE = 1001
+    private var lastStepUpdateDate: String? = null
 
     // Слушатель событий сенсора шагов
     private val sensorListener = object : SensorEventListener {
@@ -76,8 +78,25 @@ class DashboardActivity : AppCompatActivity() {
                 val totalSteps = it.values[0].toInt()
                 val today = getTodayDate()
 
-                // Установка смещения шагов (offset) один раз в день
+                // Проверка изменился ли день с последнего добавления шагов
+                if (lastStepUpdateDate != today) {
+                    // Если день новый сброс кол-во шагов
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val savedSteps = db.stepDao().getStepsByDate(today, currentUserId)?.steps ?: 0
+                        initialStepCount = totalSteps - savedSteps.coerceAtLeast(0)
+                        stepCount = savedSteps
+                        lastStepUpdateDate = today
+                        runOnUiThread {
+                            updateStepUI()
+                            updateCaloriesUI()
+                        }
+                    }
+                    return
+                }
+
+
                 if (initialStepCount == null) {
+
                     CoroutineScope(Dispatchers.IO).launch {
                         val savedSteps = db.stepDao().getStepsByDate(today, currentUserId)?.steps ?: 0
                         initialStepCount = totalSteps - savedSteps.coerceAtLeast(0)
@@ -90,23 +109,21 @@ class DashboardActivity : AppCompatActivity() {
                     return
                 }
 
-                // Обновление шагов на основе текущего значения и offset
                 val currentSteps = totalSteps - (initialStepCount ?: totalSteps)
                 if (currentSteps != stepCount && currentSteps >= 0) {
                     stepCount = currentSteps
-
                     saveSteps()
-
                     runOnUiThread {
                         updateStepUI()
+                        updateCaloriesUI()
                     }
-
-                    runOnUiThread { updateCaloriesUI() }
                 }
             }
         }
+
         override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
     }
+
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -114,8 +131,10 @@ class DashboardActivity : AppCompatActivity() {
         binding = ActivityDashboardBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        checkUsageAccessPermission()
+
         // Инициализация системы отслеживания сна
-        SleepActivityMonitor.initialize(applicationContext)
+        SleepActivityMonitor.collectSleepData(applicationContext)
 
         // Получаем ссылку на базу данных и шагомер
         db = AppDatabase.getDatabase(this)
@@ -301,16 +320,15 @@ class DashboardActivity : AppCompatActivity() {
             val calendar = Calendar.getInstance()
             val todayDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
 
-            val stepsMap = stepsData.associateBy {
-                val date = dateFormat.parse(it.date)
-                Calendar.getInstance().apply { time = date }.get(Calendar.DAY_OF_WEEK)
-            }
+            val stepsMapByDate = stepsData.associateBy { it.date }
 
             val entries = mutableListOf<BarEntry>()
-            for (i in -3..3) {
-                val dayIndex = ((todayDayOfWeek - 1 + i + 7) % 7) + 1
-                val steps = stepsMap[dayIndex]?.steps?.toFloat() ?: 0f
-                entries.add(BarEntry(i + 3f, steps))
+            calendar.add(Calendar.DAY_OF_YEAR, -3)
+            for (i in 0..6) {
+                val dateStr = dateFormat.format(calendar.time)
+                val steps = stepsMapByDate[dateStr]?.steps?.toFloat() ?: 0f
+                entries.add(BarEntry(i.toFloat(), steps))
+                calendar.add(Calendar.DAY_OF_YEAR, 1)
             }
 
             runOnUiThread {
@@ -416,6 +434,15 @@ class DashboardActivity : AppCompatActivity() {
             }
         } else {
             startStepCounterService()
+        }
+    }
+
+    private fun checkUsageAccessPermission() {
+        if (!SleepActivityMonitor.hasUsageAccess(this)) {
+            startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+            Toast.makeText(this, "Please enable 'Usage Access' for sleep tracking to work", Toast.LENGTH_LONG).show()
+        } else {
+            SleepActivityMonitor.collectSleepData(this)
         }
     }
 
