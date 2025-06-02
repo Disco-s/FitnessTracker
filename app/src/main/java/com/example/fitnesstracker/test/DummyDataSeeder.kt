@@ -18,7 +18,7 @@ object DummyDataSeeder {
 
     fun seed(database: AppDatabase) {
         CoroutineScope(Dispatchers.IO).launch {
-            // Insert dummy user
+            // Вставка фиктивного пользователя
             val dummyUser = User(
                 fullName = "Визирякин Денис Дмитриевич",
                 height = 198,
@@ -37,19 +37,19 @@ object DummyDataSeeder {
                 existingUser.id
             }
 
-            // Prepare dates: today and previous two days
+            // Подготовка дат: сегодня и два предыдущих дня
             val today = Calendar.getInstance()
             val dates = (0..2).map {
                 val cal = today.clone() as Calendar
                 cal.add(Calendar.DAY_OF_YEAR, -it)
                 dateFormat.format(cal.time)
-            }.reversed() // Oldest first (2 days ago, yesterday, today)
+            }.reversed()  // Сначала самые старые (2 дня назад, вчера, сегодня)
 
-            // Only seed if step data for today doesn't exist
+            // Сеанс пропускается, если данные о шагах за сегодня уже существуют
             val existingSteps = database.stepDao().getStepsByDate(dates.last(), userId)
             if (existingSteps != null) return@launch
 
-            // STEP ENTRIES (dummy steps per date)
+            // ЗАПИСИ О ШАГАХ (фиктивные шаги по датам)
             val stepEntries = listOf(
                 StepHistory(date = dates[0], steps = 9500, userId = userId),
                 StepHistory(date = dates[1], steps = 8700, userId = userId),
@@ -57,38 +57,38 @@ object DummyDataSeeder {
             )
             stepEntries.forEach { database.stepDao().insert(it) }
 
-            // FOOD ENTRIES (dummy meals per date)
+            // ЗАПИСИ О ПИТАНИИ (фиктивные приёмы пищи по датам)
             val foodEntries = listOf(
-                // dates[0] (2 days ago)
+                // dates[0] (2 дня назад)
                 FoodEntry(date = dates[0], mealType = "breakfast", foodName = "Oatmeal", quantity = 200.0, calories = 350, protein = 10, fat = 5, carbs = 60, userId = userId),
                 FoodEntry(date = dates[0], mealType = "lunch", foodName = "Grilled Chicken", quantity = 150.0, calories = 450, protein = 40, fat = 10, carbs = 20, userId = userId),
                 FoodEntry(date = dates[0], mealType = "dinner", foodName = "Pasta", quantity = 250.0, calories = 700, protein = 20, fat = 15, carbs = 90, userId = userId),
                 FoodEntry(date = dates[0], mealType = "snack", foodName = "Nuts", quantity = 50.0, calories = 500, protein = 15, fat = 40, carbs = 10, userId = userId),
 
-                // dates[1] (yesterday)
+                // dates[1] (вчера)
                 FoodEntry(date = dates[1], mealType = "breakfast", foodName = "Eggs and Toast", quantity = 180.0, calories = 400, protein = 25, fat = 20, carbs = 30, userId = userId),
                 FoodEntry(date = dates[1], mealType = "lunch", foodName = "Beef Bowl", quantity = 200.0, calories = 600, protein = 35, fat = 25, carbs = 50, userId = userId),
                 FoodEntry(date = dates[1], mealType = "dinner", foodName = "Rice & Veggies", quantity = 250.0, calories = 600, protein = 15, fat = 10, carbs = 80, userId = userId),
                 FoodEntry(date = dates[1], mealType = "snack", foodName = "Protein Shake", quantity = 300.0, calories = 400, protein = 30, fat = 5, carbs = 20, userId = userId),
 
-                // dates[2] (today)
+                // dates[2] (сегодня)
                 FoodEntry(date = dates[2], mealType = "lunch", foodName = "Chicken Wrap", quantity = 180.0, calories = 500, protein = 30, fat = 10, carbs = 40, userId = userId)
             )
             foodEntries.forEach { database.foodDao().insert(it) }
 
 
             fun toMillis(dateStr: String, timeStr: String): Long {
-                // Combine date + time and parse
+                // Объединение даты и времени, затем преобразование в миллисекунды
                 return dateTimeFormat.parse("$dateStr $timeStr")?.time ?: 0L
             }
 
-// SLEEP ENTRIES (dummy sleep for each date)
+// ЗАПИСИ О СНЕ (фиктивный сон по каждой дате)
             val sleepEntries = listOf(
                 SleepHistory(
                     userId = userId,
                     date = dates[0],
                     sleepStart = toMillis(dates[0], "23:00"),
-                    sleepEnd = toMillis(dates[1], "07:00"),  // next day morning
+                    sleepEnd = toMillis(dates[1], "07:00"),  // утро следующего дня
                     durationMinutes = 480
                 ),
                 SleepHistory(
@@ -102,7 +102,7 @@ object DummyDataSeeder {
                     userId = userId,
                     date = dates[2],
                     sleepStart = toMillis(dates[2], "23:30"),
-                    sleepEnd = toMillis(dates[2], "07:30"),  // adjust if needed
+                    sleepEnd = toMillis(dates[2], "07:30"),  // при необходимости скорректировать
                     durationMinutes = 480
                 )
             )

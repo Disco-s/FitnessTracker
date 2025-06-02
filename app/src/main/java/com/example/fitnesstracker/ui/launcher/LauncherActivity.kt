@@ -28,7 +28,7 @@ class LauncherActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         db = AppDatabase.getDatabase(this)
 
-        // Check permission and request if needed
+        // Проверяем наличие разрешения и запрашиваем его при необходимости
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACTIVITY_RECOGNITION)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -40,7 +40,7 @@ class LauncherActivity : AppCompatActivity() {
                 proceedAfterPermission()
             }
         } else {
-            // Permissions not required on older versions
+            // На старых версиях разрешение не требуется
             permissionGranted = true
             proceedAfterPermission()
         }
@@ -55,7 +55,7 @@ class LauncherActivity : AppCompatActivity() {
                     user.planType == "not_selected" -> startActivity(Intent(this@LauncherActivity, PlanSelectionActivity::class.java))
                     else -> {
                         val intent = Intent(this@LauncherActivity, DashboardActivity::class.java)
-                        // Pass permission status so Dashboard can start service if allowed
+                        // Передаём информацию о разрешении, чтобы Dashboard мог запустить сервис при наличии доступа
                         intent.putExtra("PERMISSION_GRANTED", permissionGranted)
                         startActivity(intent)
                     }

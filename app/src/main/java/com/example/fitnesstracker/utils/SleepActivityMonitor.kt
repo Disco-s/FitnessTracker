@@ -11,7 +11,7 @@ object SleepActivityMonitor {
     private val sleepStartHour = 23
     private val sleepEndHour = 7
 
-    // Sleep segments (start, end in millis)
+    // Сегменты сна (начало и конец в миллисекундах)
     private var sleepSegments = mutableListOf<Pair<Long, Long>>()
 
     fun getSleepSegments(): List<Pair<Long, Long>> = sleepSegments.toList()
@@ -26,7 +26,7 @@ object SleepActivityMonitor {
 
         val calendar = Calendar.getInstance()
 
-        // Define 23:00 of previous day
+        // Устанавливаем 23:00 предыдущего дня
         calendar.add(Calendar.DAY_OF_YEAR, -1)
         calendar.set(Calendar.HOUR_OF_DAY, sleepStartHour)
         calendar.set(Calendar.MINUTE, 0)
@@ -34,7 +34,7 @@ object SleepActivityMonitor {
         calendar.set(Calendar.MILLISECOND, 0)
         val startTime = calendar.timeInMillis
 
-        // Define 23:59:59.999 of previous day
+        // Устанавливаем 23:59:59.999 предыдущего дня
         val endOfPreviousDayCalendar = calendar.clone() as Calendar
         endOfPreviousDayCalendar.set(Calendar.HOUR_OF_DAY, 23)
         endOfPreviousDayCalendar.set(Calendar.MINUTE, 59)
@@ -42,7 +42,7 @@ object SleepActivityMonitor {
         endOfPreviousDayCalendar.set(Calendar.MILLISECOND, 999)
         val endOfPreviousDay = endOfPreviousDayCalendar.timeInMillis
 
-        // Define 00:00:00 of current day
+        // Устанавливаем 00:00:00 текущего дня
         val startOfCurrentDayCalendar = Calendar.getInstance()
         startOfCurrentDayCalendar.set(Calendar.HOUR_OF_DAY, 0)
         startOfCurrentDayCalendar.set(Calendar.MINUTE, 0)
@@ -50,7 +50,7 @@ object SleepActivityMonitor {
         startOfCurrentDayCalendar.set(Calendar.MILLISECOND, 0)
         val startOfCurrentDay = startOfCurrentDayCalendar.timeInMillis
 
-        // Define 07:00 of current day
+        // Устанавливаем 07:00 текущего дня
         val sleepEndCalendar = startOfCurrentDayCalendar.clone() as Calendar
         sleepEndCalendar.set(Calendar.HOUR_OF_DAY, sleepEndHour)
         sleepEndCalendar.set(Calendar.MINUTE, 0)
@@ -58,7 +58,7 @@ object SleepActivityMonitor {
         sleepEndCalendar.set(Calendar.MILLISECOND, 0)
         val maxEndTime = sleepEndCalendar.timeInMillis
 
-        // Query two separate intervals and merge results
+        // Запрашиваем два отдельных интервала и объединяем результаты
         val statsFirstPart = usageStatsManager.queryUsageStats(
             UsageStatsManager.INTERVAL_DAILY,
             startTime,
@@ -92,9 +92,7 @@ object SleepActivityMonitor {
         }
     }
 
-
-
-    private const val MIN_SLEEP_INTERVAL = 30 * 60 * 1000L // 30 minutes
+    private const val MIN_SLEEP_INTERVAL = 30 * 60 * 1000L // 30 минут
 
     fun hasUsageAccess(context: Context): Boolean {
         return try {
